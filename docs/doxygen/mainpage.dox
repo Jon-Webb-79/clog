@@ -1,0 +1,22 @@
+/**
+ * \mainpage My Library
+ *
+ * This is the high-level description of my library. It contains a set of useful functions
+ * for performing various tasks.
+ *
+ * \section install_sec Installation
+ *
+ * To install the library, simply include the header files and link against the library in your
+ * project.
+ *
+ * \section usage_sec Usage
+ *
+ * The library provides the following functions:
+ * - `my_func1()`: This function does X.
+ * - `my_func2()`: This function does Y.
+ *
+ * \section license_sec License
+ *
+ * This library is released under the MIT License.
+ */
+
