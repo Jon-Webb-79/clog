@@ -1,0 +1,1 @@
+/usr/bin/cc -g CMakeFiles/unit_tests.dir/test/unit_test.c.o CMakeFiles/unit_tests.dir/test/test_log.c.o -o unit_tests  liblogger.a -lcmocka

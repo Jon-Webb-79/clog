@@ -1,0 +1,9 @@
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/logger_static.dir
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/unit_tests.dir
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/test.dir
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/edit_cache.dir
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/rebuild_cache.dir
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/list_install_components.dir
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/install.dir
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/install/local.dir
+/home/jonwebb/Code_Dev/C/clog/clog/build/debug/CMakeFiles/install/strip.dir

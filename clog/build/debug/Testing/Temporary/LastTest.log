@@ -1,0 +1,48 @@
+Start testing: Sep 07 17:57 MDT
+----------------------------------------------------------
+1/1 Testing: logger_unit_tests
+1/1 Test: logger_unit_tests
+Command: "/home/jonwebb/Code_Dev/C/clog/clog/build/debug/unit_tests"
+Directory: /home/jonwebb/Code_Dev/C/clog/clog/build/debug
+"logger_unit_tests" start time: Sep 07 17:57 MDT
+Output:
+----------------------------------------------------------
+[==========] Running 10 test(s).
+[ RUN      ] init_stream_null_logger
+[       OK ] init_stream_null_logger
+[ RUN      ] init_stream_null_stream
+[       OK ] init_stream_null_stream
+[ RUN      ] init_file_null_logger
+[       OK ] init_file_null_logger
+[ RUN      ] init_file_null_path
+[       OK ] init_file_null_path
+[ RUN      ] init_file_open_fail_bad_parent
+[       OK ] init_file_open_fail_bad_parent
+[ RUN      ] init_dual_null_logger
+[       OK ] init_dual_null_logger
+[ RUN      ] init_dual_null_path
+[       OK ] init_dual_null_path
+[ RUN      ] init_dual_null_stream
+[       OK ] init_dual_null_stream
+[ RUN      ] close_null_preserves_errno
+[       OK ] close_null_preserves_errno
+[ RUN      ] close_idempotent
+[       OK ] close_idempotent
+[==========] 10 test(s) run.
+[  PASSED  ] 10 test(s).
+[==========] Running 2 test(s).
+[ RUN      ] level_filter_suppresses
+[       OK ] level_filter_suppresses
+[ RUN      ] level_filter_emits
+[       OK ] level_filter_emits
+[==========] 2 test(s) run.
+[  PASSED  ] 2 test(s).
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"logger_unit_tests" end time: Sep 07 17:57 MDT
+"logger_unit_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 07 17:57 MDT
