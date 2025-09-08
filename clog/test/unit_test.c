@@ -70,6 +70,12 @@ const struct CMUnitTest test_errno[] = {
     cmocka_unit_test(setters_success_leave_errno),
     cmocka_unit_test(log_impl_null_args),
 };
+// -------------------------------------------------------------------------------- 
+
+const struct CMUnitTest test_file_ownership[] = {
+    cmocka_unit_test(owns_file_closed),
+    cmocka_unit_test(stream_not_owned),
+};
 
 // ================================================================================ 
 // ================================================================================ 
@@ -89,6 +95,9 @@ int main(int argc, const char * argv[]) {
     if (status != 0)
         return status;
     status = cmocka_run_group_tests(test_errno, NULL, NULL);
+    if (status != 0)
+        return status;
+    status = cmocka_run_group_tests(test_file_ownership, NULL, NULL);
     return status;
 }
 // ================================================================================

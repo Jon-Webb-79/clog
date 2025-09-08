@@ -1,10 +1,10 @@
-Start testing: Sep 08 11:55 MDT
+Start testing: Sep 08 12:11 MDT
 ----------------------------------------------------------
 1/1 Testing: logger_unit_tests
 1/1 Test: logger_unit_tests
 Command: "/home/jonwebb/Code_Dev/C/clog/clog/build/debug/unit_tests"
 Directory: /home/jonwebb/Code_Dev/C/clog/clog/build/debug
-"logger_unit_tests" start time: Sep 08 11:55 MDT
+"logger_unit_tests" start time: Sep 08 12:11 MDT
 Output:
 ----------------------------------------------------------
 [==========] Running 10 test(s).
@@ -66,12 +66,20 @@ Output:
 [       OK ] log_impl_null_args
 [==========] 3 test(s) run.
 [  PASSED  ] 3 test(s).
+[==========] Running 2 test(s).
+[ RUN      ] owns_file_closed
+[       OK ] owns_file_closed
+[ RUN      ] stream_not_owned
+2025-09-08T18:11:12Z INFO     /home/jonwebb/Code_Dev/C/clog/clog/test/test_log.c:664:stream_not_owned: hello stream_not_owned
+[       OK ] stream_not_owned
+[==========] 2 test(s) run.
+[  PASSED  ] 2 test(s).
 <end of output>
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"logger_unit_tests" end time: Sep 08 11:55 MDT
+"logger_unit_tests" end time: Sep 08 12:11 MDT
 "logger_unit_tests" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Sep 08 11:55 MDT
+End testing: Sep 08 12:11 MDT

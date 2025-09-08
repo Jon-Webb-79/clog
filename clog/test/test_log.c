@@ -12,6 +12,8 @@
 // ================================================================================
 // Include modules here
 
+#define _POSIX_C_SOURCE 200809L 
+
 #include "logger.h"
 #include "test_log.h"
 #include <errno.h>
@@ -19,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h> 
 
 #ifndef _WIN32
   #include <unistd.h>
@@ -532,25 +535,211 @@ void log_impl_null_args(void **state) {
     }
 
     /* (b) NULL fmt on a valid logger → no output, errno=EINVAL */
-    // {
-    //     FILE* sink = make_temp_stream();
-    //     Logger lg;
-    //     assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
-    //
-    //     errno = 0;
-    //     logger_log_impl(&lg, LOG_INFO, __FILE__, __LINE__, __func__, NULL);
-    //     assert_int_equal(errno, EINVAL);
-    //
-    //     size_t len = 0;
-    //     char* buf = slurp_stream(sink, &len);
-    //     assert_int_equal(len, 0);
-    //     assert_string_equal(buf, "");
-    //
-    //     free(buf);
-    //     logger_close(&lg);
-    //     fclose(sink);
-    // }
+    {
+        FILE* sink = make_temp_stream();
+        Logger lg;
+        assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+
+        errno = 0;
+        logger_log_impl(&lg, LOG_INFO, __FILE__, __LINE__, __func__, NULL);
+        assert_int_equal(errno, EINVAL);
+
+        size_t len = 0;
+        char* buf = slurp_stream(sink, &len);
+        assert_int_equal(len, 0);
+        assert_string_equal(buf, "");
+
+        free(buf);
+        logger_close(&lg);
+        fclose(sink);
+    }
 }
+// ================================================================================ 
+// ================================================================================ 
+// TEST FILE OWNERSHIP 
+
+#ifdef _WIN32
+  #include <io.h>
+  #include <fcntl.h>
+  #include <stdio.h>
+  #include <sys/stat.h>
+  #define unlink _unlink
+  /* Simple temp-name helper for Windows */
+  static char* make_temp_path(void) {
+      char* p = _tempnam(NULL, "clog_"); /* caller frees */
+      assert_non_null(p);
+      return p;
+  }
+#else
+  #include <unistd.h>
+  #include <fcntl.h>
+  /* Robust temp-name helper using mkstemp (POSIX) */
+  static char* make_temp_path(void) {
+      char tmpl[] = "/tmp/clog_test_XXXXXX";
+      int fd = mkstemp(tmpl);
+      assert_true(fd >= 0);
+      close(fd);
+      /* We’ll reopen via stdio; the file remains on disk. */
+      return strdup(tmpl); /* caller frees */
+  }
+#endif
+
+/* Read entire file into a NUL-terminated buffer */
+static char* read_file_all(const char* path, size_t* out_len) {
+    FILE* f = fopen(path, "rb");
+    assert_non_null(f);
+    fseek(f, 0, SEEK_END);
+    long end = ftell(f);
+    assert_true(end >= 0);
+    size_t len = (size_t)end;
+    fseek(f, 0, SEEK_SET);
+    char* buf = (char*)malloc(len + 1);
+    assert_non_null(buf);
+    size_t got = fread(buf, 1, len, f);
+    assert_int_equal(got, len);
+    buf[len] = '\0';
+    fclose(f);
+    if (out_len) *out_len = len;
+    return buf;
+}
+
+/* ---- Test 1: owns_file_closed ----
+ * - Initialize logger with a file sink it owns
+ * - Write a line, close the logger
+ * - Verify:
+ *     a) lg.file is NULL (internal state)
+ *     b) content is flushed to disk (message present)
+ *     c) we can reopen/append to the file (handle was actually closed)
+ */
+void owns_file_closed(void **state) {
+    (void)state;
+
+    char* path = make_temp_path();
+
+    Logger lg;
+    assert_true(logger_init_file(&lg, path, LOG_DEBUG));
+
+    const char* probe = "owns_file_closed_probe";
+    LOG_INFO(&lg, "%s", probe);
+
+    /* Close; logger should flush & close the owned file and null its pointers */
+    logger_close(&lg);
+    assert_null(lg.file);
+    assert_null(lg.stream);
+
+    /* Content should be on disk */
+    size_t len = 0;
+    char* filebuf = read_file_all(path, &len);
+    assert_true(len > 0);
+    assert_non_null(strstr(filebuf, probe));
+    free(filebuf);
+
+    /* We should be able to reopen the path (no lingering exclusive lock) */
+    FILE* again = fopen(path, "a");
+    assert_non_null(again);
+    fputs("post-close\n", again);
+    fclose(again);
+
+    /* Cleanup the temp file */
+    unlink(path);
+#ifdef _WIN32
+    free(path);
+#else
+    free(path);
+#endif
+}
+
+/* ---- Test 2: stream_not_owned ----
+ * - Initialize dual logger with owned file + non-owned stderr
+ * - Close the logger
+ * - Verify stderr still works: fprintf returns >0 and fflush returns 0
+ */
+void stream_not_owned(void **state) {
+    (void)state;
+
+    char* path = make_temp_path();
+
+    Logger lg;
+    assert_true(logger_init_dual(&lg, path, stderr, LOG_DEBUG));
+    LOG_INFO(&lg, "hello stream_not_owned");
+
+    logger_close(&lg);
+
+    /* --- Capture stderr to a temp stream (no terminal noise) --- */
+    FILE* cap = tmpfile();
+    assert_non_null(cap);
+
+#ifdef _WIN32
+    int old_fd = _dup(_fileno(stderr));
+    assert_true(old_fd >= 0);
+    int rc = _dup2(_fileno(cap), _fileno(stderr));
+    assert_int_equal(rc, 0);
+#else
+    int old_fd = dup(fileno(stderr));
+    assert_true(old_fd >= 0);
+    int rc = dup2(fileno(cap), fileno(stderr));
+    assert_true(rc >= 0);
+#endif
+
+    /* stderr should still be writable/flushable */
+    const char* marker = "stderr still alive from test: stream_not_owned\n";
+    int w = fprintf(stderr, "%s", marker);
+    int f = fflush(stderr);
+    assert_true(w > 0);
+    assert_int_equal(f, 0);
+
+    /* Read back what was written to captured stderr */
+    fflush(cap);
+    fseek(cap, 0, SEEK_END);
+    long end = ftell(cap);
+    assert_true(end >= 0);
+    size_t len = (size_t)end;
+    fseek(cap, 0, SEEK_SET);
+    char* buf = (char*)malloc(len + 1);
+    assert_non_null(buf);
+    size_t got = fread(buf, 1, len, cap);
+    assert_int_equal(got, len);
+    buf[len] = '\0';
+    assert_non_null(strstr(buf, "stderr still alive from test"));
+    free(buf);
+
+    /* --- Restore stderr --- */
+#ifdef _WIN32
+    _dup2(old_fd, _fileno(stderr));
+    _close(old_fd);
+#else
+    dup2(old_fd, fileno(stderr));
+    close(old_fd);
+#endif
+
+    fclose(cap);
+
+    /* Cleanup */
+    unlink(path);
+    free(path);
+}
+
+// void stream_not_owned(void **state) {
+//     (void)state;
+//
+//     char* path = make_temp_path();
+//
+//     Logger lg;
+//     assert_true(logger_init_dual(&lg, path, stderr, LOG_DEBUG));
+//     LOG_INFO(&lg, "hello stream_not_owned");
+//
+//     logger_close(&lg);
+//
+//     /* stderr should still be writable/flushable */
+//     int w = fprintf(stderr, "stderr still alive from test: %s\n", "stream_not_owned");
+//     int f = fflush(stderr);
+//     assert_true(w > 0);
+//     assert_int_equal(f, 0);
+//
+//     /* Cleanup */
+//     unlink(path);
+//     free(path);
+// }
 // ================================================================================
 // ================================================================================
 // eof
