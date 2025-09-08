@@ -48,6 +48,21 @@ const struct CMUnitTest test_filter[] = {
     cmocka_unit_test(level_filter_suppresses),
     cmocka_unit_test(level_filter_emits),
 };
+// -------------------------------------------------------------------------------- 
+
+const struct CMUnitTest output_tests[] = {
+    cmocka_unit_test(level_filter_suppresses),
+    cmocka_unit_test(level_filter_emits),
+    cmocka_unit_test(format_contains_fields),
+    cmocka_unit_test(timestamp_toggle),
+    cmocka_unit_test(name_toggle),
+};
+// -------------------------------------------------------------------------------- 
+
+const struct CMUnitTest test_output[] = {
+    cmocka_unit_test(macro_location),
+    cmocka_unit_test(no_color_for_file),
+};
 // ================================================================================ 
 // ================================================================================ 
 
@@ -57,6 +72,12 @@ int main(int argc, const char * argv[]) {
     if (status != 0)
         return status;
     status = cmocka_run_group_tests(test_filter, NULL, NULL);
+    if (status != 0)
+        return status;
+    status = cmocka_run_group_tests(output_tests, NULL, NULL);
+    if (status != 0)
+        return status;
+    status = cmocka_run_group_tests(test_output, NULL, NULL);
     return status;
 }
 // ================================================================================

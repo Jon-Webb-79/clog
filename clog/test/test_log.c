@@ -18,6 +18,18 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+
+#ifndef _WIN32
+  #include <unistd.h>
+  #include <sys/types.h>
+  #include <sys/select.h>
+  #if defined(__APPLE__)
+    #include <util.h>   /* openpty on macOS/BSD */
+  #else
+    #include <pty.h>    /* openpty on Linux */
+  #endif
+#endif
 // ================================================================================ 
 // ================================================================================ 
 
@@ -40,6 +52,24 @@ int test_suite_setup(void **state) {
 int test_suite_teardown(void **state) {
     (void)state;
     return 0;
+}
+// -------------------------------------------------------------------------------- 
+
+static bool has_iso8601_prefix(const char* s) {
+    if (!s) return false;
+    for (int i = 0; i < 4; ++i) if (!isdigit((unsigned char)s[i])) return false; /* YYYY */
+    if (s[4] != '-') return false;
+    if (!isdigit((unsigned char)s[5]) || !isdigit((unsigned char)s[6])) return false; /* MM */
+    if (s[7] != '-') return false;
+    if (!isdigit((unsigned char)s[8]) || !isdigit((unsigned char)s[9])) return false; /* DD */
+    if (s[10] != 'T') return false;
+    if (!isdigit((unsigned char)s[11]) || !isdigit((unsigned char)s[12])) return false; /* hh */
+    if (s[13] != ':') return false;
+    if (!isdigit((unsigned char)s[14]) || !isdigit((unsigned char)s[15])) return false; /* mm */
+    if (s[16] != ':') return false;
+    if (!isdigit((unsigned char)s[17]) || !isdigit((unsigned char)s[18])) return false; /* ss */
+    if (s[19] != 'Z') return false;
+    return true;
 }
 // ================================================================================ 
 // ================================================================================ 
@@ -236,6 +266,189 @@ void level_filter_emits(void **state) {
     assert_non_null(strstr(buf, "WARNING"));
     assert_non_null(strstr(buf, "ERROR"));
     assert_non_null(strstr(buf, "CRITICAL"));
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
+// ================================================================================ 
+// ================================================================================ 
+// TEST OUTPUT FORMAT 
+
+void format_contains_fields(void **state) {
+    (void)state;
+
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+    logger_enable_timestamps(&lg, true);
+    logger_set_name(&lg, NULL); /* keep format stable for this test */
+
+    const char* msg = "hello-world-msg";
+    /* Ensure we know the exact source line of the LOG call */
+    const int expected_line = __LINE__ + 1;
+    LOG_WARNING(&lg, "%s", msg);
+
+    size_t len = 0;
+    char* buf = slurp_stream(sink, &len);
+    assert_true(len > 0);
+    /* one line only */
+    assert_int_equal(count_newlines(buf), 1);
+
+    /* Check LEVEL token is present */
+    assert_non_null(strstr(buf, "WARNING"));
+
+    /* Check the function name appears (this test function name) */
+    assert_non_null(strstr(buf, "format_contains_fields"));
+
+    /* Check :LINE: pattern exists */
+    char needle[64];
+    snprintf(needle, sizeof(needle), ":%d:", expected_line);
+    assert_non_null(strstr(buf, needle));
+
+    /* Check message text present */
+    assert_non_null(strstr(buf, msg));
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
+// -------------------------------------------------------------------------------- 
+
+void timestamp_toggle(void **state) {
+    (void)state;
+
+    /* --- timestamps ON --- */
+    {
+        FILE* sink = make_temp_stream();
+        Logger lg;
+        assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+        logger_enable_timestamps(&lg, true);
+
+        LOG_INFO(&lg, "ts-on");
+        size_t len = 0;
+        char* buf = slurp_stream(sink, &len);
+        assert_true(len > 0);
+        /* Check prefix */
+        assert_true(has_iso8601_prefix(buf));
+
+        free(buf);
+        logger_close(&lg);
+        fclose(sink);
+    }
+
+    /* --- timestamps OFF --- */
+    {
+        FILE* sink = make_temp_stream();
+        Logger lg;
+        assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+        logger_enable_timestamps(&lg, false);
+
+        LOG_INFO(&lg, "ts-off");
+        size_t len = 0;
+        char* buf = slurp_stream(sink, &len);
+        assert_true(len > 0);
+        /* Should NOT have ISO8601 prefix at start */
+        assert_false(has_iso8601_prefix(buf));
+
+        free(buf);
+        logger_close(&lg);
+        fclose(sink);
+    }
+}
+// -------------------------------------------------------------------------------- 
+
+void name_toggle(void **state) {
+    (void)state;
+
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+    logger_enable_timestamps(&lg, false); /* simplify prefix checks */
+
+    logger_set_name(&lg, "demo-name");
+    LOG_INFO(&lg, "first");
+
+    logger_set_name(&lg, NULL); /* clear name */
+    LOG_INFO(&lg, "second");
+
+    size_t len = 0;
+    char* buf = slurp_stream(sink, &len);
+    assert_true(len > 0);
+    /* two lines */
+    assert_int_equal(count_newlines(buf), 2);
+
+    /* Expect exactly one "[demo-name]" occurrence */
+    const char* tag = "[demo-name]";
+    const char* p = buf;
+    int count = 0;
+    while ((p = strstr(p, tag)) != NULL) { ++count; ++p; }
+    assert_int_equal(count, 2);
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
+// ================================================================================ 
+// ================================================================================ 
+
+void macro_location(void **state) {
+    (void)state;
+
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+    logger_enable_timestamps(&lg, false); /* simplify prefix */
+    logger_set_name(&lg, NULL);
+
+    const char* msg = "macro-location-probe";
+    const int expected_line = __LINE__ + 1;
+    LOG_INFO(&lg, "%s", msg);
+
+    size_t len = 0;
+    char* buf = slurp_stream(sink, &len);
+    assert_true(len > 0);
+
+    /* Exactly one line */
+    size_t lines = 0;
+    for (const char* p = buf; *p; ++p) if (*p == '\n') ++lines;
+    assert_int_equal(lines, 1);
+
+    /* Function name present */
+    assert_non_null(strstr(buf, "macro_location"));
+
+    /* Exact :LINE: present */
+    char needle[64];
+    snprintf(needle, sizeof(needle), ":%d:", expected_line);
+    assert_non_null(strstr(buf, needle));
+
+    /* Message present */
+    assert_non_null(strstr(buf, msg));
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
+// -------------------------------------------------------------------------------- 
+
+void no_color_for_file(void **state) {
+    (void)state;
+
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+
+    logger_enable_timestamps(&lg, false);
+    logger_enable_colors(&lg, true);
+
+    LOG_CRITICAL(&lg, "color check file sink");
+
+    size_t len = 0;
+    char* buf = slurp_stream(sink, &len);
+    assert_true(len > 0);
+
+    /* No ANSI CSI introducer in file output */
+    assert_null(strstr(buf, "\x1b["));  /* ESC [ */
 
     free(buf);
     logger_close(&lg);

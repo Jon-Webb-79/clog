@@ -1,2 +1,2 @@
-logger_unit_tests 3 0.000557463
+logger_unit_tests 11 0.000179552
 ---

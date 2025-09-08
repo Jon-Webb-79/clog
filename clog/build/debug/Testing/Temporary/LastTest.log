@@ -1,10 +1,10 @@
-Start testing: Sep 07 17:57 MDT
+Start testing: Sep 07 20:58 MDT
 ----------------------------------------------------------
 1/1 Testing: logger_unit_tests
 1/1 Test: logger_unit_tests
 Command: "/home/jonwebb/Code_Dev/C/clog/clog/build/debug/unit_tests"
 Directory: /home/jonwebb/Code_Dev/C/clog/clog/build/debug
-"logger_unit_tests" start time: Sep 07 17:57 MDT
+"logger_unit_tests" start time: Sep 07 20:58 MDT
 Output:
 ----------------------------------------------------------
 [==========] Running 10 test(s).
@@ -37,12 +37,32 @@ Output:
 [       OK ] level_filter_emits
 [==========] 2 test(s) run.
 [  PASSED  ] 2 test(s).
+[==========] Running 5 test(s).
+[ RUN      ] level_filter_suppresses
+[       OK ] level_filter_suppresses
+[ RUN      ] level_filter_emits
+[       OK ] level_filter_emits
+[ RUN      ] format_contains_fields
+[       OK ] format_contains_fields
+[ RUN      ] timestamp_toggle
+[       OK ] timestamp_toggle
+[ RUN      ] name_toggle
+[       OK ] name_toggle
+[==========] 5 test(s) run.
+[  PASSED  ] 5 test(s).
+[==========] Running 2 test(s).
+[ RUN      ] macro_location
+[       OK ] macro_location
+[ RUN      ] no_color_for_file
+[       OK ] no_color_for_file
+[==========] 2 test(s) run.
+[  PASSED  ] 2 test(s).
 <end of output>
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"logger_unit_tests" end time: Sep 07 17:57 MDT
+"logger_unit_tests" end time: Sep 07 20:58 MDT
 "logger_unit_tests" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Sep 07 17:57 MDT
+End testing: Sep 07 20:58 MDT
