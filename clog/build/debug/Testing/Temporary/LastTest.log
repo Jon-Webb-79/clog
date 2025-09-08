@@ -1,10 +1,10 @@
-Start testing: Sep 07 20:58 MDT
+Start testing: Sep 08 11:55 MDT
 ----------------------------------------------------------
 1/1 Testing: logger_unit_tests
 1/1 Test: logger_unit_tests
 Command: "/home/jonwebb/Code_Dev/C/clog/clog/build/debug/unit_tests"
 Directory: /home/jonwebb/Code_Dev/C/clog/clog/build/debug
-"logger_unit_tests" start time: Sep 07 20:58 MDT
+"logger_unit_tests" start time: Sep 08 11:55 MDT
 Output:
 ----------------------------------------------------------
 [==========] Running 10 test(s).
@@ -57,12 +57,21 @@ Output:
 [       OK ] no_color_for_file
 [==========] 2 test(s) run.
 [  PASSED  ] 2 test(s).
+[==========] Running 3 test(s).
+[ RUN      ] setters_null_lg
+[       OK ] setters_null_lg
+[ RUN      ] setters_success_leave_errno
+[       OK ] setters_success_leave_errno
+[ RUN      ] log_impl_null_args
+[       OK ] log_impl_null_args
+[==========] 3 test(s) run.
+[  PASSED  ] 3 test(s).
 <end of output>
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"logger_unit_tests" end time: Sep 07 20:58 MDT
+"logger_unit_tests" end time: Sep 08 11:55 MDT
 "logger_unit_tests" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Sep 07 20:58 MDT
+End testing: Sep 08 11:55 MDT

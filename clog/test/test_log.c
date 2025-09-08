@@ -454,6 +454,103 @@ void no_color_for_file(void **state) {
     logger_close(&lg);
     fclose(sink);
 }
+// ================================================================================ 
+// ================================================================================ 
+
+void setters_null_lg(void **state) {
+    (void)state;
+
+    errno = 0;
+    logger_set_level(NULL, LOG_DEBUG);
+    assert_int_equal(errno, EINVAL);
+
+    errno = 0;
+    logger_set_name(NULL, "name");
+    assert_int_equal(errno, EINVAL);
+
+    errno = 0;
+    logger_enable_timestamps(NULL, true);
+    assert_int_equal(errno, EINVAL);
+
+    errno = 0;
+    logger_enable_colors(NULL, true);
+    assert_int_equal(errno, EINVAL);
+
+    errno = 0;
+    logger_enable_locking(NULL, true);
+    assert_int_equal(errno, EINVAL);
+}
+// -------------------------------------------------------------------------------- 
+
+void setters_success_leave_errno(void **state) {
+    (void)state;
+
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_INFO));
+
+    errno = EAGAIN;
+    logger_set_level(&lg, LOG_DEBUG);
+    assert_int_equal(lg.level, LOG_DEBUG);
+    assert_int_equal(errno, EAGAIN);
+
+    errno = EAGAIN;
+    logger_set_name(&lg, "unit");
+    assert_non_null(lg.name);
+    assert_string_equal(lg.name, "unit");
+    assert_int_equal(errno, EAGAIN);
+
+    errno = EAGAIN;
+    logger_enable_timestamps(&lg, false);
+    assert_false(lg.timestamps);
+    assert_int_equal(errno, EAGAIN);
+
+    errno = EAGAIN;
+    logger_enable_colors(&lg, false);
+    assert_false(lg.colors);
+    assert_int_equal(errno, EAGAIN);
+
+    errno = EAGAIN;
+    logger_enable_locking(&lg, false);
+    assert_false(lg.locking);
+    assert_int_equal(errno, EAGAIN);
+
+    logger_close(&lg);
+    fclose(sink);
+}
+// --------------------------------------------------------------------------------
+
+void log_impl_null_args(void **state) {
+    (void)state;
+
+    /* (a) NULL logger */
+    {
+        errno = 0;
+        /* Use harmless file/line/func values; they won't be used */
+        logger_log_impl(NULL, LOG_INFO, __FILE__, __LINE__, __func__, "msg");
+        assert_int_equal(errno, EINVAL);
+    }
+
+    /* (b) NULL fmt on a valid logger → no output, errno=EINVAL */
+    // {
+    //     FILE* sink = make_temp_stream();
+    //     Logger lg;
+    //     assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+    //
+    //     errno = 0;
+    //     logger_log_impl(&lg, LOG_INFO, __FILE__, __LINE__, __func__, NULL);
+    //     assert_int_equal(errno, EINVAL);
+    //
+    //     size_t len = 0;
+    //     char* buf = slurp_stream(sink, &len);
+    //     assert_int_equal(len, 0);
+    //     assert_string_equal(buf, "");
+    //
+    //     free(buf);
+    //     logger_close(&lg);
+    //     fclose(sink);
+    // }
+}
 // ================================================================================
 // ================================================================================
 // eof

@@ -202,7 +202,6 @@ void logger_enable_colors(Logger* lg, bool on) {
 // -------------------------------------------------------------------------------- 
 
 void logger_enable_locking(Logger* lg, bool on) { 
-    errno = 0;
     if (!lg) {
         errno = EINVAL;
         return;
@@ -238,9 +237,15 @@ void logger_vlog_impl(Logger* lg,
                       int line,
                       const char* func,
                       const char* fmt,
-                      va_list args)
-{
-    if (!lg || level < lg->level) return;
+                      va_list args) {
+    /* Validate inputs for errno discipline */
+    if (!lg || !fmt) {
+        errno = EINVAL;
+        return;
+    }
+
+    /* Not an error: filtered-out messages must not modify errno */
+    if (level < lg->level) return;
 
     if (lg->locking) LOGGER_MUTEX_LOCK(lg->lock);
 
@@ -252,7 +257,6 @@ void logger_vlog_impl(Logger* lg,
 
     const char* color = level_color(level);
 
-    /* Colorize only TTY stream; never colorize files */
     bool stream_color = lg->colors && lg->stream && is_tty(lg->stream);
     bool file_color   = false;
 
@@ -261,7 +265,6 @@ void logger_vlog_impl(Logger* lg,
 
     if (lg->locking) LOGGER_MUTEX_UNLOCK(lg->lock);
 }
-
 // -------------------------------------------------------------------------------- 
 
 void logger_log_impl(Logger* lg,
@@ -269,8 +272,13 @@ void logger_log_impl(Logger* lg,
                      const char* file,
                      int line,
                      const char* func,
-                     const char* fmt, ...)
-{
+                     const char* fmt, ...) {
+    /* Validate inputs for errno discipline */
+    if (!lg || !fmt) {
+        errno = EINVAL;
+        return;
+    }
+
     va_list args;
     va_start(args, fmt);
     logger_vlog_impl(lg, level, file, line, func, fmt, args);

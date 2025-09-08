@@ -63,6 +63,14 @@ const struct CMUnitTest test_output[] = {
     cmocka_unit_test(macro_location),
     cmocka_unit_test(no_color_for_file),
 };
+// -------------------------------------------------------------------------------- 
+
+const struct CMUnitTest test_errno[] = {
+    cmocka_unit_test(setters_null_lg),
+    cmocka_unit_test(setters_success_leave_errno),
+    cmocka_unit_test(log_impl_null_args),
+};
+
 // ================================================================================ 
 // ================================================================================ 
 
@@ -78,6 +86,9 @@ int main(int argc, const char * argv[]) {
     if (status != 0)
         return status;
     status = cmocka_run_group_tests(test_output, NULL, NULL);
+    if (status != 0)
+        return status;
+    status = cmocka_run_group_tests(test_errno, NULL, NULL);
     return status;
 }
 // ================================================================================
