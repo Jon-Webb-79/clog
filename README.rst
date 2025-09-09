@@ -190,3 +190,20 @@ or on Windows:
 .. code-block:: batch
 
    cmake --install build\static --config Release
+
+Requirements
+############
+
+* C11 compiler (GCC, Clang, or MSVC)
+* CMake 3.26+
+* Optional: cmocka (for unit testing)
+* Optional: valgrind (Linux, leak checking)
+
+License
+#######
+MIT License.
+
+Documentation
+=============
+Further documentation (API reference and examples) is planned for a Read the Docs site.  
+Until then, see the in-code Doxygen comments in ``logger.h`` and ``logger.c``.
