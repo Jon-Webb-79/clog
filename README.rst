@@ -110,3 +110,25 @@ Logging:
 * ``LOG_DEBUG/INFO/WARNING/ERROR/CRITICAL(lg, "fmt %d", x);`` (macros)
 * ``logger_write(lg, level, __FILE__, __LINE__, __func__, "fmt %d", x);`` (MISRA-friendly)
 
+Usage Example
+#############
+.. code-block:: c
+
+   #include "logger.h"
+   #include <stdio.h>
+   #include <stdlib.h>
+
+   int main(void) {
+       Logger log;
+       if (!logger_init_dual(&log, "app.log", stderr, LOG_DEBUG)) {
+           perror("logger_init_dual");
+           return EXIT_FAILURE;
+       }
+       logger_set_name(&log, "demo");
+
+       LOG_INFO(&log, "Application start");
+       logger_write(&log, LOG_ERROR, __FILE__, __LINE__, __func__, "Error with MISRA-safe call");
+
+       logger_close(&log);
+       return EXIT_SUCCESS;
+   }
