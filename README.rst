@@ -159,3 +159,34 @@ and unit tests with ``cmocka``:
    cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug -DLOGGER_BUILD_TESTS=ON
    cmake --build build/debug -j
    ctest --test-dir build/debug --output-on-failure
+
+Helper Scripts
+##############
+Convenience scripts are included in ``scripts``:
+
+**zsh / bash**
+--------------
+* ``scripts/zsh/debug.zsh`` – Debug build with tests
+* ``scripts/zsh/static.zsh`` – Build static library
+* ``scripts/zsh/install.zsh`` – Install to system prefix
+* Bash versions are equivalent (rename to ``.sh`` if needed).
+
+**Windows (.bat)**
+------------------
+* ``scripts/Windows/debug.bat`` – Debug build with tests
+* ``scripts/Windows/static.bat`` – Build static library
+* ``scripts/Windows/install.bat`` – Install to a given prefix
+
+Run them from the repo root. Edit hardcoded paths in the script if needed.
+
+System Installation
+-------------------
+.. code-block:: bash
+
+   sudo cmake --install build/static
+
+or on Windows:
+
+.. code-block:: batch
+
+   cmake --install build\static --config Release
