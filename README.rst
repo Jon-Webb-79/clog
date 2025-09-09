@@ -204,6 +204,6 @@ License
 MIT License.
 
 Documentation
-=============
+#############
 Further documentation (API reference and examples) is planned for a Read the Docs site.  
 Until then, see the in-code Doxygen comments in ``logger.h`` and ``logger.c``.
