@@ -91,7 +91,8 @@ static bool init_common(Logger* lg, LogLevel level) {
     lg->timestamps = true;
     lg->colors = true;
     lg->locking = true;
-    if (!LOGGER_MUTEX_INIT_OK(lg->lock)) return false;  // was mtx_init(...)
+    if (!LOGGER_MUTEX_INIT_OK(lg->lock)) return false; 
+    lg->initialized = true;
     return true;
 }
 
@@ -156,7 +157,8 @@ void logger_close(Logger* lg) {
     if (lg->owns_file && lg->file) fclose(lg->file);
     lg->file = NULL;
     lg->stream = NULL;
-    LOGGER_MUTEX_DESTROY(lg->lock);  // was mtx_destroy(...)
+    LOGGER_MUTEX_DESTROY(lg->lock); 
+    lg->initialized = false;
 }
 
 // -------------------------------------------------------------------------------- 
@@ -172,7 +174,7 @@ void logger_set_level(Logger* lg, LogLevel level) {
 // -------------------------------------------------------------------------------- 
 
 void logger_set_name(Logger* lg, const char* name) {
-    if (!lg || !name) {
+    if (!lg) {
         errno  = EINVAL;
         return;
     }
@@ -283,6 +285,33 @@ void logger_log_impl(Logger* lg,
     va_start(args, fmt);
     logger_vlog_impl(lg, level, file, line, func, fmt, args);
     va_end(args);
+}
+// -------------------------------------------------------------------------------- 
+
+void logger_write(Logger* lg,
+                  LogLevel level,
+                  const char* file,
+                  int line,
+                  const char* func,
+                  const char* msg)
+{
+    if (!lg || !msg) { errno = EINVAL; return; }
+    /* Level filtering and locking identical to logger_vlog_impl */
+    if (level < lg->level) return;
+
+    if (lg->locking) LOGGER_MUTEX_LOCK(lg->lock);
+
+    char ts[32] = {0};
+    if (lg->timestamps) now_iso8601(ts, sizeof(ts));
+
+    const char* color = level_color(level);
+    bool stream_color = lg->colors && lg->stream && is_tty(lg->stream);
+    bool file_color   = false;
+
+    if (lg->stream) emit_one(lg->stream, stream_color, color, ts, lg->name, level, file, line, func, msg);
+    if (lg->file)   emit_one(lg->file,   file_color,   "",    ts, lg->name, level, file, line, func, msg);
+
+    if (lg->locking) LOGGER_MUTEX_UNLOCK(lg->lock);
 }
 // ================================================================================
 // ================================================================================

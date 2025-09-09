@@ -93,6 +93,7 @@ typedef struct Logger {
     bool        owns_file;  /* Close 'file' on logger_close if true */
     bool        locking;    /* Enable/disable locking (for single-thread apps) */
     logger_mutex_t lock;    /* Portable mutex */
+    bool initialized;       /* initialized flag */
 } Logger;
 // ================================================================================ 
 // ================================================================================ 
@@ -287,7 +288,16 @@ void logger_vlog_impl(Logger* lg,
                       const char* func,
                       const char* fmt,
                       va_list args);
+// -------------------------------------------------------------------------------- 
 
+/* Non-variadic message writer for MISRA-friendly use.
+   Caller preformats into 'msg' (NUL-terminated). */
+void logger_write(Logger* lg,
+                  LogLevel level,
+                  const char* file,
+                  int line,
+                  const char* func,
+                  const char* msg);
 // -------------------------------------------------------------------------------- 
 
 /**

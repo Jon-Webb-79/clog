@@ -386,7 +386,7 @@ void name_toggle(void **state) {
     const char* p = buf;
     int count = 0;
     while ((p = strstr(p, tag)) != NULL) { ++count; ++p; }
-    assert_int_equal(count, 2);
+    assert_int_equal(count, 1);
 
     free(buf);
     logger_close(&lg);
@@ -718,28 +718,188 @@ void stream_not_owned(void **state) {
     unlink(path);
     free(path);
 }
+// ================================================================================ 
+// ================================================================================ 
+// TEST MISRA C IMPLEMENTATION 
 
-// void stream_not_owned(void **state) {
-//     (void)state;
-//
-//     char* path = make_temp_path();
-//
-//     Logger lg;
-//     assert_true(logger_init_dual(&lg, path, stderr, LOG_DEBUG));
-//     LOG_INFO(&lg, "hello stream_not_owned");
-//
-//     logger_close(&lg);
-//
-//     /* stderr should still be writable/flushable */
-//     int w = fprintf(stderr, "stderr still alive from test: %s\n", "stream_not_owned");
-//     int f = fflush(stderr);
-//     assert_true(w > 0);
-//     assert_int_equal(f, 0);
-//
-//     /* Cleanup */
-//     unlink(path);
-//     free(path);
-// }
+void write_level_filter_suppresses(void **state) {
+    (void)state;
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_ERROR)); /* only ERROR+ allowed */
+
+    logger_write(&lg, LOG_INFO, "unit.c", 10, "t", "msg-info");
+    logger_write(&lg, LOG_DEBUG, "unit.c", 11, "t", "msg-debug");
+
+    size_t len = 0;
+    char* buf = slurp_stream(sink, &len);
+    assert_int_equal(len, 0);
+    assert_string_equal(buf, "");
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
+// -------------------------------------------------------------------------------- 
+
+void write_level_filter_emits(void **state) {
+    (void)state;
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_INFO)); /* INFO and up */
+
+    logger_write(&lg, LOG_INFO,     "u.c", 21, "f", "i");
+    logger_write(&lg, LOG_WARNING,  "u.c", 22, "f", "w");
+    logger_write(&lg, LOG_ERROR,    "u.c", 23, "f", "e");
+    logger_write(&lg, LOG_CRITICAL, "u.c", 24, "f", "c");
+
+    size_t len = 0;
+    char* buf = slurp_stream(sink, &len);
+    assert_true(len > 0);
+    assert_int_equal(count_newlines(buf), 4);
+    assert_non_null(strstr(buf, "INFO"));
+    assert_non_null(strstr(buf, "WARNING"));
+    assert_non_null(strstr(buf, "ERROR"));
+    assert_non_null(strstr(buf, "CRITICAL"));
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
+// -------------------------------------------------------------------------------- 
+
+void write_format_contains_fields(void **state) {
+    (void)state;
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+    logger_enable_timestamps(&lg, true);
+    logger_set_name(&lg, NULL); /* keep name out for this check */
+
+    const char* msg = "hello-write";
+    const char* file = "src_mod.c";
+    const int   line = 1234;
+    const char* func = "do_it";
+
+    logger_write(&lg, LOG_WARNING, file, line, func, msg);
+
+    size_t len = 0;
+    char* buf = slurp_stream(sink, &len);
+    assert_true(len > 0);
+    assert_int_equal(count_newlines(buf), 1);
+
+    /* Level */
+    assert_non_null(strstr(buf, "WARNING"));
+
+    /* file:line:function */
+    char needle[128];
+    snprintf(needle, sizeof(needle), "%s:%d:%s:", file, line, func);
+    assert_non_null(strstr(buf, needle));
+
+    /* message text */
+    assert_non_null(strstr(buf, msg));
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
+// -------------------------------------------------------------------------------- 
+
+static bool has_iso8601_prefix(const char* s); /* forward decl if needed */
+
+void write_timestamp_toggle(void **state) {
+    (void)state;
+
+    /* ON */
+    {
+        FILE* sink = make_temp_stream();
+        Logger lg;
+        assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+        logger_enable_timestamps(&lg, true);
+
+        logger_write(&lg, LOG_INFO, "f.c", 1, "g", "ts-on");
+        size_t len = 0; char* buf = slurp_stream(sink, &len);
+        assert_true(len > 0);
+        assert_true(has_iso8601_prefix(buf));
+
+        free(buf);
+        logger_close(&lg);
+        fclose(sink);
+    }
+
+    /* OFF */
+    {
+        FILE* sink = make_temp_stream();
+        Logger lg;
+        assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+        logger_enable_timestamps(&lg, false);
+
+        logger_write(&lg, LOG_INFO, "f.c", 2, "g", "ts-off");
+        size_t len = 0; char* buf = slurp_stream(sink, &len);
+        assert_true(len > 0);
+        assert_false(has_iso8601_prefix(buf));
+
+        free(buf);
+        logger_close(&lg);
+        fclose(sink);
+    }
+}
+// -------------------------------------------------------------------------------- 
+
+void write_errno_null_args(void **state) {
+    (void)state;
+
+    /* a) NULL logger */
+    errno = 0;
+    logger_write(NULL, LOG_INFO, "x.c", 1, "f", "msg");
+    assert_int_equal(errno, EINVAL);
+
+    /* b) NULL message on valid logger -> errno=EINVAL, no output */
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+
+    errno = 0;
+    logger_write(&lg, LOG_INFO, "x.c", 2, "f", NULL);
+    assert_int_equal(errno, EINVAL);
+
+    size_t len = 0; char* buf = slurp_stream(sink, &len);
+    assert_int_equal(len, 0);
+    assert_string_equal(buf, "");
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
+// --------------------------------------------------------------------------------
+
+void write_name_toggle(void **state) {
+    (void)state;
+
+    FILE* sink = make_temp_stream();
+    Logger lg;
+    assert_true(logger_init_stream(&lg, sink, LOG_DEBUG));
+    logger_enable_timestamps(&lg, false); /* simplify start of line */
+
+    logger_set_name(&lg, "alpha");
+    logger_write(&lg, LOG_INFO, "n.c", 10, "nf", "first");
+
+    logger_set_name(&lg, NULL); /* clear */
+    logger_write(&lg, LOG_INFO, "n.c", 11, "nf", "second");
+
+    size_t len = 0; char* buf = slurp_stream(sink, &len);
+    assert_true(len > 0);
+    assert_int_equal(count_newlines(buf), 2);
+
+    const char* tag = "[alpha]";
+    int hits = 0; const char* p = buf;
+    while ((p = strstr(p, tag))) { ++hits; ++p; }
+    assert_int_equal(hits, 1);
+
+    free(buf);
+    logger_close(&lg);
+    fclose(sink);
+}
 // ================================================================================
 // ================================================================================
 // eof

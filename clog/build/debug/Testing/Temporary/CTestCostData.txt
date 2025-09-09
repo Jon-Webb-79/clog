@@ -1,2 +1,2 @@
-logger_unit_tests 15 0.000137727
+logger_unit_tests 21 5.18575e-05
 ---

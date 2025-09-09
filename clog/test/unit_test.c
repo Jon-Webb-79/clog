@@ -76,7 +76,16 @@ const struct CMUnitTest test_file_ownership[] = {
     cmocka_unit_test(owns_file_closed),
     cmocka_unit_test(stream_not_owned),
 };
+// -------------------------------------------------------------------------------- 
 
+const struct CMUnitTest test_misra[] = {
+    cmocka_unit_test(write_level_filter_suppresses),
+    cmocka_unit_test(write_level_filter_emits),
+    cmocka_unit_test(write_format_contains_fields),
+    cmocka_unit_test(write_timestamp_toggle),
+    cmocka_unit_test(write_errno_null_args),
+    cmocka_unit_test(write_name_toggle),
+};
 // ================================================================================ 
 // ================================================================================ 
 
@@ -98,6 +107,9 @@ int main(int argc, const char * argv[]) {
     if (status != 0)
         return status;
     status = cmocka_run_group_tests(test_file_ownership, NULL, NULL);
+    if (status != 0)
+        return status;
+    status = cmocka_run_group_tests(test_misra, NULL, NULL);
     return status;
 }
 // ================================================================================
