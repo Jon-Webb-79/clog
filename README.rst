@@ -36,4 +36,77 @@ By default, logging is done with convenience macros:
 
    LOG_INFO(&lg, "Value is %d", x);
 
+For MISRA C environments (where macros are discouraged), you can disable them 
+at compile time by defining:
+
+.. code-block:: c
+
+   #define LOGGER_DISABLE_MACROS
+
+Then use the explicit function:
+
+.. code-block:: c
+
+   logger_write(&lg, LOG_INFO, __FILE__, __LINE__, __func__, "Value is %d", x);
+
+This provides the same functionality without macros, keeping the code MISRA-compliant.
+
+Implementation Details
+######################
+Core Types
+----------
+**LogLevel**
+   Enumerated severity: ``LOG_DEBUG``, ``LOG_INFO``, ``LOG_WARNING``, ``LOG_ERROR``, ``LOG_CRITICAL``.
+
+**Logger**
+   A small struct holding configuration and sinks:
+
+* ``FILE* file`` (optional), ``FILE* stream`` (optional, e.g., ``stderr``)
+* ``LogLevel level`` (minimum level to emit)
+* ``const char* name`` (optional tag, not owned by default)
+* ``timestamps`` and ``colors`` toggles
+* Portable mutex (C11/pthreads/Win32) guarding concurrent emission
+
+Threading & Portability
+-----------------------
+The header conditionally includes one of:
+
+* C11 threads: ``<threads.h>`` (``mtx_t``)
+* POSIX: ``pthread_mutex_t``
+* Windows: ``CRITICAL_SECTION``
+
+Buffering & Performance
+-----------------------
+The implementation uses ``setvbuf`` to reduce syscall overhead:
+
+* Files: full buffering (e.g., 1 MiB) to batch writes
+* Terminals: line buffering for prompt output (TTY only)
+
+Error Handling
+--------------
+* **Initialization functions** return ``bool`` and set ``errno`` on failure.
+* **Setters** set ``errno`` only on bad input (e.g., ``Logger* == NULL``).
+* **Logging calls** set ``errno`` only on invalid parameters.
+
+API Overview
+------------
+Initialization:
+
+* ``bool logger_init_stream(Logger* lg, FILE* stream, LogLevel level);``
+* ``bool logger_init_file(Logger* lg, const char* path, LogLevel level);``
+* ``bool logger_init_dual(Logger* lg, const char* path, FILE* stream, LogLevel level);``
+* ``void logger_close(Logger* lg);``
+
+Configuration:
+
+* ``void logger_set_level(Logger* lg, LogLevel level);``
+* ``void logger_set_name(Logger* lg, const char* name);``  (NULL clears)
+* ``void logger_enable_timestamps(Logger* lg, bool on);``
+* ``void logger_enable_colors(Logger* lg, bool on);``
+* ``void logger_enable_locking(Logger* lg, bool on);``
+
+Logging:
+
+* ``LOG_DEBUG/INFO/WARNING/ERROR/CRITICAL(lg, "fmt %d", x);`` (macros)
+* ``logger_write(lg, level, __FILE__, __LINE__, __func__, "fmt %d", x);`` (MISRA-friendly)
 
