@@ -11,6 +11,7 @@ logging without the usual headaches:
 * **Thread-safe** by default (C11 threads with fallbacks to pthreads/Win32)
 * **No heap required** (stack/static), with optional heap-based helpers if desired
 * Sensible **stdio buffering** knobs for performance
+* **MISRA C–friendly API**: macros optional, direct functions available
 
 When to Use This Library
 ########################
@@ -26,6 +27,29 @@ This library is particularly useful when you need:
 
 The design avoids dynamic allocation by default (great for embedded or early-boot code), 
 but you can add heap-based creation helpers if your app architecture prefers that style.
+
+MISRA and Non-Macro Usage
+#########################
+By default, logging is done with convenience macros:
+
+.. code-block:: c
+
+   LOG_INFO(&lg, "Value is %d", x);
+
+For MISRA C environments (where macros are discouraged), you can disable them 
+at compile time by defining:
+
+.. code-block:: c
+
+   #define LOGGER_DISABLE_MACROS
+
+Then use the explicit function:
+
+.. code-block:: c
+
+   logger_write(&lg, LOG_INFO, __FILE__, __LINE__, __func__, "Value is %d", x);
+
+This provides the same functionality without macros, keeping the code MISRA-compliant.
 
 Implementation Details
 ######################
@@ -57,13 +81,12 @@ The implementation uses ``setvbuf`` to reduce syscall overhead:
 
 * Files: full buffering (e.g., 1 MiB) to batch writes
 * Terminals: line buffering for prompt output (TTY only)
-* You can adjust these defaults or expose options (see below)
 
 Error Handling
 --------------
-* **Initialization functions** return ``bool`` and set ``errno`` on failure (e.g., ``EINVAL`` for bad input, pass-through from ``fopen``).
-* **Setters** are ``void`` and set ``errno`` only on bad input (e.g., ``Logger* == NULL``).
-* **Logging calls** ignore ``errno`` on success and only set it on invalid parameters (never on level filtering).
+* **Initialization functions** return ``bool`` and set ``errno`` on failure.
+* **Setters** set ``errno`` only on bad input (e.g., ``Logger* == NULL``).
+* **Logging calls** set ``errno`` only on invalid parameters.
 
 API Overview
 ------------
@@ -84,8 +107,8 @@ Configuration:
 
 Logging:
 
-* ``LOG_DEBUG/INFO/WARNING/ERROR/CRITICAL(lg, "fmt %d", x);`` — macros capturing file/line/function
-* ``logger_log_impl`` / ``logger_vlog_impl`` — lower-level helpers if you need them
+* ``LOG_DEBUG/INFO/WARNING/ERROR/CRITICAL(lg, "fmt %d", x);`` (macros)
+* ``logger_write(lg, level, __FILE__, __LINE__, __func__, "fmt %d", x);`` (MISRA-friendly)
 
 Usage Example
 #############
@@ -95,12 +118,6 @@ Usage Example
    #include <stdio.h>
    #include <stdlib.h>
 
-   static void worker(Logger* log, int job_id) {
-       LOG_DEBUG(log, "Starting job %d", job_id);
-       if (job_id == 42) LOG_WARNING(log, "Special case");
-       LOG_INFO(log, "Job %d done", job_id);
-   }
-
    int main(void) {
        Logger log;
        if (!logger_init_dual(&log, "app.log", stderr, LOG_DEBUG)) {
@@ -108,14 +125,9 @@ Usage Example
            return EXIT_FAILURE;
        }
        logger_set_name(&log, "demo");
-       logger_enable_colors(&log, true);
-       logger_enable_timestamps(&log, true);
 
        LOG_INFO(&log, "Application start");
-       worker(&log, 1);
-       worker(&log, 42);
-       LOG_ERROR(&log, "Simulated error");
-       LOG_CRITICAL(&log, "Critical condition, exiting");
+       logger_write(&log, LOG_ERROR, __FILE__, __LINE__, __func__, "Error with MISRA-safe call");
 
        logger_close(&log);
        return EXIT_SUCCESS;
@@ -123,148 +135,75 @@ Usage Example
 
 Building
 ########
-Single-Command Build (POSIX)
-----------------------------
+Compile directly (POSIX)
+------------------------
 .. code-block:: bash
 
    cc -std=c11 -Wall -Wextra -O2 main.c logger.c -o demo -pthread
    ./demo
 
-Windows (MSVC)
---------------
+Compile directly (Windows MSVC)
+-------------------------------
 .. code-block:: batch
 
    cl /std:c11 /W4 /O2 main.c logger.c
    demo.exe
 
-When to Adjust Buffering
-########################
-I/O can dominate runtime in chatty programs. The defaults already help, but you may want to tune:
+CMake Builds
+------------
+The project provides a ``CMakeLists.txt`` to build static or shared libraries 
+and unit tests with ``cmocka``:
 
-* Increase file buffer size if disk writes are frequent:
+.. code-block:: bash
 
-  .. code-block:: c
+   cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug -DLOGGER_BUILD_TESTS=ON
+   cmake --build build/debug -j
+   ctest --test-dir build/debug --output-on-failure
 
-     /* In logger_init_file after fopen succeeds */
-     setvbuf(lg->file, NULL, _IOFBF, 1<<20);  /* 1 MiB */
+Helper Scripts
+##############
+Convenience scripts are included in ``scripts``:
 
-* Use line buffering on terminals for prompt display while limiting syscalls:
+**zsh / bash**
+--------------
+* ``scripts/zsh/debug.zsh`` – Debug build with tests
+* ``scripts/zsh/static.zsh`` – Build static library
+* ``scripts/zsh/install.zsh`` – Install to system prefix
+* Bash versions are equivalent (rename to ``.sh`` if needed).
 
-  .. code-block:: c
+**Windows (.bat)**
+------------------
+* ``scripts/Windows/debug.bat`` – Debug build with tests
+* ``scripts/Windows/static.bat`` – Build static library
+* ``scripts/Windows/install.bat`` – Install to a given prefix
 
-     if (LOGGER_ISATTY(stream)) setvbuf(stream, NULL, _IOLBF, 0);
+Run them from the repo root. Edit hardcoded paths in the script if needed.
 
-* Provide a ``logger_flush(lg)`` helper (optional) that calls ``fflush`` on sinks, to flush before ``fork/exec`` or after critical logs.
+System Installation
+-------------------
+.. code-block:: bash
 
-Design Choices & Extensions
-###########################
-Why object-style?
------------------
-Passing ``Logger*`` avoids globals, makes tests cleaner, and keeps lifetime explicit.
+   sudo cmake --install build/static
 
-Static vs Dynamic Allocation
-----------------------------
-The library is designed for **stack/static** allocation by default. You can optionally add heap factories (``logger_new_*`` / ``logger_free``) if your architecture needs returnable/late-constructed loggers or opaque handles.
+or on Windows:
 
-Optional Extensions (easy to add)
----------------------------------
-* **Rotation** (size/time-based)
-* **JSON/structured logs**
-* **Buffered mode** (ring buffer) with ``logger_flush`` / ``dump_to_file``
-* **Asynchronous writer thread** for ultra-low-latency hot paths
-* **Allocator hooks** for custom arenas
+.. code-block:: batch
 
-Contributing
+   cmake --install build\static --config Release
+
+Requirements
 ############
-Pull requests are welcome. For major changes, open an issue first to discuss what you’d like to change. Please include/update tests and related docstrings. Keep portable behavior across C11/pthreads/Win32.
+* C11 compiler (GCC, Clang, or MSVC)
+* CMake 3.26+
+* Optional: cmocka (for unit testing)
+* Optional: valgrind (Linux, leak checking)
 
 License
 #######
 MIT License.
 
-Requirements
-############
-Developed and tested on macOS and Linux. Known-good toolchains:
-
-* GCC 13+/Clang 16+ (POSIX) and MSVC (Windows)
-* C standard: C11 or later (works with C17)
-* Optional: ``cmocka`` for unit tests, ``valgrind`` on Linux for leak checks
-* Optional: CMake 3.26+ if you prefer out-of-tree builds
-
-Installation and Build Guide
-############################
-Getting the Code
-----------------
-.. code-block:: bash
-
-   git clone https://github.com/<your-username>/clogger.git
-   cd clogger
-
-Debug Build (example with CMake)
---------------------------------
-.. code-block:: bash
-
-   cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug
-   cmake --build build/debug -j
-
-Run tests (if present):
-
-.. code-block:: bash
-
-   cd build/debug
-   ctest --output-on-failure
-
-Static Library Build
---------------------
-.. code-block:: bash
-
-   cmake -S . -B build/static -DLOGGER_BUILD_STATIC=ON -DCMAKE_BUILD_TYPE=Release
-   cmake --build build/static -j
-
-System Installation (optional)
-------------------------------
-.. code-block:: bash
-
-   sudo cmake --install build/static
-
-Usage in Projects
------------------
-1) **As system/installed library**: include headers in your C files and link the library if you built one.
-
-.. code-block:: c
-
-   #include <logger.h>
-
-2) **As sources**: copy ``logger.h`` and ``logger.c`` into your project and compile them with your code.
-
-Troubleshooting
----------------
-* **Undefined references to pthreads**: ensure ``-pthread`` (GCC/Clang) is present on POSIX builds.
-* **Colors not showing on Windows**: legacy consoles may need ANSI support enabled; or leave colors off for files.
-* **No timestamps/colors**: verify that ``logger_enable_timestamps``/``logger_enable_colors`` are set to ``true``.
-* **Nothing prints at DEBUG**: set the logger level to ``LOG_DEBUG``; levels below the threshold are suppressed.
-
-Contribute to Documentation
----------------------------
-If you maintain Sphinx/Doxygen docs:
-
-1. Create a Python virtual environment and install requirements:
-
-   .. code-block:: bash
-
-      python -m venv .venv
-      . .venv/bin/activate
-      pip install -r docs/requirements.txt
-
-2. Generate documentation (examples):
-
-   .. code-block:: bash
-
-      doxygen docs/doxygen/Doxyfile
-      sphinx-build -b html docs/source docs/_build/html
-
 Documentation
 =============
 Further documentation (API reference and examples) is planned for a Read the Docs site.  
-Until then, the in-code Doxygen comments in ``logger.h``/``logger.c`` are the source of truth.
+Until then, see the in-code Doxygen comments in ``logger.h`` and ``logger.c``.
 
