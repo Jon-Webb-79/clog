@@ -132,3 +132,30 @@ Usage Example
        logger_close(&log);
        return EXIT_SUCCESS;
    }
+
+Building
+########
+Compile directly (POSIX)
+------------------------
+.. code-block:: bash
+
+   cc -std=c11 -Wall -Wextra -O2 main.c logger.c -o demo -pthread
+   ./demo
+
+Compile directly (Windows MSVC)
+-------------------------------
+.. code-block:: batch
+
+   cl /std:c11 /W4 /O2 main.c logger.c
+   demo.exe
+
+CMake Builds
+------------
+The project provides a ``CMakeLists.txt`` to build static or shared libraries 
+and unit tests with ``cmocka``:
+
+.. code-block:: bash
+
+   cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug -DLOGGER_BUILD_TESTS=ON
+   cmake --build build/debug -j
+   ctest --test-dir build/debug --output-on-failure
