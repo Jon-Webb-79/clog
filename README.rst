@@ -164,12 +164,17 @@ Helper Scripts
 ##############
 Convenience scripts are included in ``scripts``:
 
-**zsh / bash**
+**zsh**
 --------------
 * ``scripts/zsh/debug.zsh`` – Debug build with tests
 * ``scripts/zsh/static.zsh`` – Build static library
 * ``scripts/zsh/install.zsh`` – Install to system prefix
-* Bash versions are equivalent (rename to ``.sh`` if needed).
+
+**bash**
+--------------
+* ``scripts/bash/debug.sh`` – Debug build with tests
+* ``scripts/bash/static.sh`` – Build static library
+* ``scripts/bash/install.sh`` – Install to system prefix
 
 **Windows (.bat)**
 ------------------
