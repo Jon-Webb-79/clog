@@ -1,4 +1,5 @@
-*******
+EADME.rst
+
 CLogger
 *******
 A small, portable logging library for C that gives you structured, level-based 
@@ -37,11 +38,11 @@ By default, logging is done with convenience macros:
    LOG_INFO(&lg, "Value is %d", x);
 
 For MISRA C environments (where macros are discouraged), you can disable them 
-at compile time by defining:
+at compile time by defining the compile time float ``NO_FUNCTION_MACROS``.
 
 .. code-block:: c
 
-   #define LOGGER_DISABLE_MACROS
+    gcc -DNO_FUNCTION_MACROS -o myprogram main.c logger.c
 
 Then use the explicit function:
 

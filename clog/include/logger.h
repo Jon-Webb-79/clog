@@ -53,6 +53,20 @@
 // ================================================================================ 
 // ================================================================================ 
 
+#ifndef LOGGER_USE_MACROS
+#  ifdef NO_FUNCTION_MACROS
+#    define LOGGER_USE_MACROS 0
+#  else
+#    define LOGGER_USE_MACROS 1
+#  endif
+#endif
+
+/* Sanity check: if someone set both, ensure consistency */
+#if defined(LOGGER_NO_MACROS) && (LOGGER_USE_MACROS+0)!=0
+#  error "LOGGER_NO_MACROS set but LOGGER_USE_MACROS != 0"
+#endif
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -299,6 +313,7 @@ void logger_write(Logger* lg,
                   const char* func,
                   const char* msg);
 // -------------------------------------------------------------------------------- 
+#if LOGGER_USE_MACROS
 
 /**
  * @def LOG_DEBUG
@@ -378,6 +393,7 @@ void logger_write(Logger* lg,
  */
 #define LOG_CRITICAL(lg, fmt, ...) logger_log_impl((lg), LOG_CRITICAL, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
+#endif /* LOGGER_USE_MACROS */
 // ================================================================================ 
 // ================================================================================ 
 #ifdef __cplusplus
